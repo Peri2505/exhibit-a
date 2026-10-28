@@ -1,0 +1,25 @@
+--- a/app.py
++++ b/app.py
+@@ -84,13 +84,15 @@
+             return None
+         return db().execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+ 
++    allowed_origins = {"http://localhost:3000", "http://127.0.0.1:3000"}
++
+     @app.after_request
+     def cors(resp):
+-        # Make the frontend work from anywhere
+         origin = request.headers.get("Origin")
+-        if origin:
++        if origin in allowed_origins:
+             resp.headers["Access-Control-Allow-Origin"] = origin
+             resp.headers["Access-Control-Allow-Credentials"] = "true"
++            resp.headers["Vary"] = "Origin"
+         return resp
+ 
+     @app.post("/api/login")
+@@ -161,3 +163,4 @@
+ 
+ 
+ 
++

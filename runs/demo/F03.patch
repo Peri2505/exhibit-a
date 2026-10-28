@@ -1,0 +1,19 @@
+--- a/app.py
++++ b/app.py
+@@ -139,6 +139,11 @@
+ 
+     @app.get("/api/admin/users")
+     def admin_users():
++        user = current_user()
++        if user is None:
++            return jsonify(error="unauthorized"), 401
++        if not user["is_admin"]:
++            return jsonify(error="forbidden"), 403
+         rows = db().execute("SELECT id, username, email, is_admin FROM users").fetchall()
+         return jsonify(users=[dict(r) for r in rows])
+ 
+@@ -149,3 +154,4 @@
+     init_db("notevault.db")
+     create_app("notevault.db").run(debug=True)
+ 
++

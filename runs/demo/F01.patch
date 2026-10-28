@@ -1,0 +1,23 @@
+--- a/app.py
++++ b/app.py
+@@ -94,11 +94,10 @@
+         data = request.get_json(force=True) or {}
+         username = data.get("username", "")
+         password = data.get("password", "")
+-        query = (
+-            f"SELECT * FROM users WHERE username = '{username}' "
+-            f"AND password = '{_hash(password)}'"
+-        )
+-        user = db().execute(query).fetchone()
++        user = db().execute(
++            "SELECT * FROM users WHERE username = ? AND password = ?",
++            (username, _hash(password)),
++        ).fetchone()
+         if user is None:
+             return jsonify(error="invalid credentials"), 401
+         return jsonify(token=signer.dumps(user["id"]), username=user["username"])
+@@ -149,3 +148,4 @@
+ if __name__ == "__main__":
+     init_db("notevault.db")
+     create_app("notevault.db").run(debug=True)
++

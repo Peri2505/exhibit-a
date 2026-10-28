@@ -1,0 +1,22 @@
+--- a/app.py
++++ b/app.py
+@@ -13,8 +13,12 @@
+ from flask import Flask, g, jsonify, request
+ from itsdangerous import BadSignature, URLSafeSerializer
+ 
+-# TODO: move to env before launch
+-SECRET_KEY = "notevault-dev-secret-2026"
++import os
++import secrets as _secrets
++
++# Read the signing key from the environment; use an ephemeral dev-only
++# key when it is unset so nothing secret lives in source.
++SECRET_KEY = os.environ.get("NOTEVAULT_SECRET_KEY") or _secrets.token_urlsafe(32)
+ 
+ 
+ def _hash(pw: str) -> str:
+@@ -156,3 +160,4 @@
+ 
+ 
+ 
++

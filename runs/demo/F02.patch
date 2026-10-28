@@ -1,0 +1,19 @@
+--- a/app.py
++++ b/app.py
+@@ -133,9 +133,9 @@
+         row = db().execute(
+             "SELECT id, owner_id, title, body FROM notes WHERE id = ?", (note_id,)
+         ).fetchone()
+-        if row is None:
++        if row is None or row["owner_id"] != user["id"]:
+             return jsonify(error="not found"), 404
+-        return jsonify(dict(row))
++        return jsonify({"id": row["id"], "title": row["title"], "body": row["body"]})
+ 
+     @app.get("/api/admin/users")
+     def admin_users():
+@@ -155,3 +155,4 @@
+     create_app("notevault.db").run(debug=True)
+ 
+ 
++

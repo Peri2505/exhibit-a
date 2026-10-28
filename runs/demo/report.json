@@ -1,0 +1,123 @@
+{
+  "source": "demo_target (NoteVault)",
+  "findings": [
+    {
+      "id": "F01",
+      "title": "SQL injection in login",
+      "category": "sqli",
+      "cwe": "CWE-89",
+      "severity": "critical",
+      "path": "app.py",
+      "line": 98,
+      "evidence": "query = f\"SELECT * FROM users WHERE username = '{username}' ...\"",
+      "explanation": "The login SQL is built by string formatting, so input changes the query itself. A crafted username can make the WHERE clause always true and log in without a valid password.",
+      "expected_secure_behavior": "A crafted username must not bypass the password check; login returns 401.",
+      "stage": "verified",
+      "claim": "A crafted username must not bypass the login password check.",
+      "test_path": "tests/exhibit_a/test_f01_sql_injection_in_login.py",
+      "test_code": "import os, sys\nsys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))\n\ndef test_sql_injection_cannot_bypass_login(client):\n    \"\"\"Proven if a crafted username logs in without a valid password.\"\"\"\n    payload = \"' OR '1'='1' -- \"\n    resp = client.post(\"/api/login\", json={\"username\": payload, \"password\": \"wrong\"})\n    assert resp.status_code == 401, \"injection bypassed authentication\"",
+      "patch_summary": "Parameterize the login query so input can't change the SQL.",
+      "diff": "--- a/app.py\n+++ b/app.py\n@@ -94,11 +94,10 @@\n         data = request.get_json(force=True) or {}\n         username = data.get(\"username\", \"\")\n         password = data.get(\"password\", \"\")\n-        query = (\n-            f\"SELECT * FROM users WHERE username = '{username}' \"\n-            f\"AND password = '{_hash(password)}'\"\n-        )\n-        user = db().execute(query).fetchone()\n+        user = db().execute(\n+            \"SELECT * FROM users WHERE username = ? AND password = ?\",\n+            (username, _hash(password)),\n+        ).fetchone()\n         if user is None:\n             return jsonify(error=\"invalid credentials\"), 401\n         return jsonify(token=signer.dumps(user[\"id\"]), username=user[\"username\"])\n@@ -149,3 +148,4 @@\n if __name__ == \"__main__\":\n     init_db(\"notevault.db\")\n     create_app(\"notevault.db\").run(debug=True)\n+\n",
+      "note": ""
+    },
+    {
+      "id": "F03",
+      "title": "Admin user list has no authentication",
+      "category": "missing-auth",
+      "cwe": "CWE-306",
+      "severity": "critical",
+      "path": "app.py",
+      "line": 143,
+      "evidence": "@app.get('/api/admin/users')  def admin_users(): ... (no current_user check)",
+      "explanation": "The admin endpoint lists every user but never checks for a token or admin rights. Anyone on the internet can list all accounts.",
+      "expected_secure_behavior": "Request without a valid admin token returns 401/403.",
+      "stage": "verified",
+      "claim": "The admin user list must reject unauthenticated requests.",
+      "test_path": "tests/exhibit_a/test_f03_admin_user_list_has_no_authent.py",
+      "test_code": "import os, sys\nsys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))\n\ndef test_admin_endpoint_requires_auth(client):\n    \"\"\"Proven if the admin user list is reachable with no token.\"\"\"\n    r = client.get(\"/api/admin/users\")\n    assert r.status_code in (401, 403), \"admin list exposed without auth\"",
+      "patch_summary": "Require a valid admin token on the admin endpoint.",
+      "diff": "--- a/app.py\n+++ b/app.py\n@@ -139,6 +139,11 @@\n \n     @app.get(\"/api/admin/users\")\n     def admin_users():\n+        user = current_user()\n+        if user is None:\n+            return jsonify(error=\"unauthorized\"), 401\n+        if not user[\"is_admin\"]:\n+            return jsonify(error=\"forbidden\"), 403\n         rows = db().execute(\"SELECT id, username, email, is_admin FROM users\").fetchall()\n         return jsonify(users=[dict(r) for r in rows])\n \n@@ -149,3 +154,4 @@\n     init_db(\"notevault.db\")\n     create_app(\"notevault.db\").run(debug=True)\n \n+\n",
+      "note": ""
+    },
+    {
+      "id": "F02",
+      "title": "Any user can read any note (IDOR)",
+      "category": "idor",
+      "cwe": "CWE-639",
+      "severity": "high",
+      "path": "app.py",
+      "line": 132,
+      "evidence": "SELECT ... FROM notes WHERE id = ?  (no owner check)",
+      "explanation": "get_note looks up a note by id but never checks who owns it. Any logged-in user can read everyone else's notes by changing the id.",
+      "expected_secure_behavior": "Reading a note you do not own returns 404/403, not its contents.",
+      "stage": "verified",
+      "claim": "A user must not be able to read another user's note by id.",
+      "test_path": "tests/exhibit_a/test_f02_any_user_can_read_any_note_ido.py",
+      "test_code": "import os, sys\nsys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))\n\ndef test_user_cannot_read_another_users_note(client, alice_token):\n    \"\"\"Proven if Alice can read a note she does not own.\"\"\"\n    r = client.get(\"/api/notes/2\", headers={\"Authorization\": f\"Bearer {alice_token}\"})\n    assert r.status_code in (403, 404), \"IDOR: read another user's note\"",
+      "patch_summary": "Reject notes the caller does not own.",
+      "diff": "--- a/app.py\n+++ b/app.py\n@@ -133,9 +133,9 @@\n         row = db().execute(\n             \"SELECT id, owner_id, title, body FROM notes WHERE id = ?\", (note_id,)\n         ).fetchone()\n-        if row is None:\n+        if row is None or row[\"owner_id\"] != user[\"id\"]:\n             return jsonify(error=\"not found\"), 404\n-        return jsonify(dict(row))\n+        return jsonify({\"id\": row[\"id\"], \"title\": row[\"title\"], \"body\": row[\"body\"]})\n \n     @app.get(\"/api/admin/users\")\n     def admin_users():\n@@ -155,3 +155,4 @@\n     create_app(\"notevault.db\").run(debug=True)\n \n \n+\n",
+      "note": ""
+    },
+    {
+      "id": "F04",
+      "title": "Hardcoded signing secret",
+      "category": "hardcoded-secret",
+      "cwe": "CWE-798",
+      "severity": "high",
+      "path": "app.py",
+      "line": 20,
+      "evidence": "SECRET_KEY = \"notevault-dev-secret-2026\"",
+      "explanation": "The token signing key is written directly in the code and in the public repo. Anyone who sees it can forge valid login tokens for any user.",
+      "expected_secure_behavior": "The signing key is read from the environment, not a constant in source.",
+      "stage": "verified",
+      "claim": "The signing key must not be the constant committed to source.",
+      "test_path": "tests/exhibit_a/test_f04_hardcoded_signing_secret.py",
+      "test_code": "import os, sys\nsys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))\n\nimport app\n\ndef test_secret_is_not_hardcoded():\n    \"\"\"Proven if the signing key is the constant baked into source.\"\"\"\n    assert app.SECRET_KEY != \"notevault-dev-secret-2026\", \"hardcoded signing secret\"",
+      "patch_summary": "Read the signing key from the environment instead of source.",
+      "diff": "--- a/app.py\n+++ b/app.py\n@@ -13,8 +13,12 @@\n from flask import Flask, g, jsonify, request\n from itsdangerous import BadSignature, URLSafeSerializer\n \n-# TODO: move to env before launch\n-SECRET_KEY = \"notevault-dev-secret-2026\"\n+import os\n+import secrets as _secrets\n+\n+# Read the signing key from the environment; use an ephemeral dev-only\n+# key when it is unset so nothing secret lives in source.\n+SECRET_KEY = os.environ.get(\"NOTEVAULT_SECRET_KEY\") or _secrets.token_urlsafe(32)\n \n \n def _hash(pw: str) -> str:\n@@ -156,3 +160,4 @@\n \n \n \n+\n",
+      "note": ""
+    },
+    {
+      "id": "F05",
+      "title": "CORS reflects any origin with credentials",
+      "category": "cors",
+      "cwe": "CWE-942",
+      "severity": "medium",
+      "path": "app.py",
+      "line": 86,
+      "evidence": "resp.headers['Access-Control-Allow-Origin'] = origin  (+ credentials true)",
+      "explanation": "The app echoes whatever Origin the browser sends and allows credentials. That lets any malicious website make authenticated requests on a logged-in user's behalf.",
+      "expected_secure_behavior": "An untrusted Origin is not echoed back when credentials are allowed.",
+      "stage": "verified",
+      "claim": "An untrusted Origin must not be reflected in CORS headers.",
+      "test_path": "tests/exhibit_a/test_f05_cors_reflects_any_origin_with_.py",
+      "test_code": "import os, sys\nsys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))\n\ndef test_cors_does_not_reflect_untrusted_origin(client, alice_token):\n    \"\"\"Proven if an untrusted Origin is echoed back with credentials allowed.\"\"\"\n    r = client.get(\"/api/notes\", headers={\"Authorization\": f\"Bearer {alice_token}\",\n                                           \"Origin\": \"https://evil.example\"})\n    acao = r.headers.get(\"Access-Control-Allow-Origin\")\n    assert acao != \"https://evil.example\", \"CORS reflects any origin\"",
+      "patch_summary": "Reflect only allow-listed origins.",
+      "diff": "--- a/app.py\n+++ b/app.py\n@@ -84,13 +84,15 @@\n             return None\n         return db().execute(\"SELECT * FROM users WHERE id = ?\", (user_id,)).fetchone()\n \n+    allowed_origins = {\"http://localhost:3000\", \"http://127.0.0.1:3000\"}\n+\n     @app.after_request\n     def cors(resp):\n-        # Make the frontend work from anywhere\n         origin = request.headers.get(\"Origin\")\n-        if origin:\n+        if origin in allowed_origins:\n             resp.headers[\"Access-Control-Allow-Origin\"] = origin\n             resp.headers[\"Access-Control-Allow-Credentials\"] = \"true\"\n+            resp.headers[\"Vary\"] = \"Origin\"\n         return resp\n \n     @app.post(\"/api/login\")\n@@ -161,3 +163,4 @@\n \n \n \n+\n",
+      "note": ""
+    }
+  ],
+  "usage": {
+    "nano": {
+      "calls": 1,
+      "input_tokens": 467,
+      "output_tokens": 22,
+      "cost": 3.3299999999999996e-05,
+      "latency_ms_total": 0.0
+    },
+    "super": {
+      "calls": 1,
+      "input_tokens": 1785,
+      "output_tokens": 582,
+      "cost": 0.0010593,
+      "latency_ms_total": 0.0
+    },
+    "ultra": {
+      "calls": 10,
+      "input_tokens": 20799,
+      "output_tokens": 7710,
+      "cost": 0.043929,
+      "latency_ms_total": 0.0
+    }
+  }
+}
