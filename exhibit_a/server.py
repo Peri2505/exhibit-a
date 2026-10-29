@@ -53,7 +53,7 @@ async def _sse(bus: EventBus, task: asyncio.Task | None):
 
 @app.get("/api/scan")
 async def scan(request: Request, repo: str | None = None, local: str | None = None,
-               demo: bool = False):
+               demo: bool = False, speed: float = 1.0):
     bus = EventBus()
 
     if demo or not settings.api_key:
@@ -66,7 +66,7 @@ async def scan(request: Request, repo: str | None = None, local: str | None = No
                     yield m
             return StreamingResponse(empty(), media_type="text/event-stream")
         events = load_events(run)
-        task = asyncio.create_task(replay(events, bus, speed=1.0))
+        task = asyncio.create_task(replay(events, bus, speed=max(0.05, min(speed, 5.0))))
         return StreamingResponse(_sse(bus, task), media_type="text/event-stream")
 
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
