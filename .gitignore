@@ -17,3 +17,5 @@ tools/make_video.py
 assets/natural_audio/
 assets/video_build2/
 tools/make_video2.py
+assets/video_build3/
+tools/make_video3.py
