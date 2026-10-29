@@ -9,6 +9,10 @@
 Built for the **Nebius × NVIDIA Global AI Hackathon** · Coding & Agentic Engineering track
 Powered by **NVIDIA Nemotron** on **Nebius Token Factory**
 
+![CI](https://github.com/Peri2505/exhibit-a/actions/workflows/ci.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-f6a821.svg)
+![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
+
 </div>
 
 ---
@@ -34,14 +38,18 @@ If it can't produce a reliable failing test, the finding is **dropped, not repor
 
 ---
 
-## How it maps to the judging criteria
+## What it does well — and its honest limits
 
-| Criterion | How Exhibit A addresses it |
-|---|---|
-| **Technological Implementation** | A real agentic loop (triage → analyze → prove → sandbox → patch → re-verify) with execution-grounded feedback, running three Nemotron tiers on Token Factory and a locked-down test sandbox. |
-| **Design** | A "case file" UI: every finding is a card that moves **Suspected → Proven → Patched → Fixed**, with the red failing test visibly turning green, plus a live model-routing cost/latency panel. A complete product, not a terminal demo. |
-| **Potential Impact** | A specific audience — indie devs, students, and teams shipping AI-written code — and a concrete claim: *proven* vulnerabilities with verified fixes and no false-positive noise. |
-| **Quality of the Idea** | "Prove the bug with a test before you fix it" is a non-obvious inversion of how scanners work, and it's exactly what makes agentic code review trustworthy. |
+**Strengths**
+- **Execution-grounded, not vibes.** Every reported bug is backed by a test that actually ran and *failed* on the current code; every fix is re-verified against that test **and** the project's existing suite before it's called Fixed.
+- **Cost-aware model routing.** Three Nemotron tiers on Token Factory, each used where it earns its keep — Nano for breadth, Ultra only for the hard reasoning. A full scan of the demo target cost **$0.13** on a real run.
+- **A complete product, not a terminal demo.** The case-file UI shows each finding move Suspected → Proven → Fixed, the red proof test turning green, the generated test, and the diff — with a live model cost/latency panel.
+- **It generalizes.** On a real run it surfaced a vulnerability we hadn't planted (unsalted password hashing) and *dropped* one it couldn't prove — the discipline working, not a scripted path.
+
+**Honest limits (and what's next)**
+- **Python targets today**; JS/TS and Go are the obvious next languages.
+- **The Docker sandbox is the real isolation boundary.** The local fallback is network-free, env-scrubbed, and resource-limited (CPU/memory/file-size caps), but it's for development only — production runs use Docker.
+- **Proof-before-patch costs one test run per finding**, so very large repos need batching and result caching. That's a deliberate trade: we spend compute to buy trust.
 
 ---
 
@@ -53,7 +61,7 @@ Exhibit A sends each step to the cheapest Nemotron model that can do it well, al
 |---|---|---|---|
 | **Nano** | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | Triage every source file by risk | Fast and nearly free; runs over the whole repo |
 | **Super** | `nvidia/nemotron-3-super-120b-a12b` | Turn risky files into concrete, testable findings | Strong analysis at a fraction of Ultra's cost |
-| **Ultra** | `nvidia/Nemotron-3-Ultra-550B-A55B` | Write the proof test, then write the patch | Hard multi-step reasoning where correctness matters most |
+| **Ultra** | `nvidia/Nemotron-3-Ultra-550b-a55b` | Write the proof test, then write the patch | Hard multi-step reasoning where correctness matters most |
 
 > The expensive model is only used for the two hardest steps, so a full scan of a small repo costs a few cents. Confirm the exact IDs your account serves with `python -m exhibit_a models`.
 

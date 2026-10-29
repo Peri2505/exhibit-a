@@ -59,7 +59,7 @@ class Settings:
         "ultra": ModelSpec(
             "ultra",
             # Confirm the exact ID with:  python -m exhibit_a models
-            os.environ.get("EXHIBIT_ULTRA_MODEL", "nvidia/Nemotron-3-Ultra-550B-A55B"),
+            os.environ.get("EXHIBIT_ULTRA_MODEL", "nvidia/Nemotron-3-Ultra-550b-a55b"),
             _f("EXHIBIT_ULTRA_IN", 1.00), _f("EXHIBIT_ULTRA_OUT", 3.00),
             "Deep reasoning: write the proof test, then the patch",
         ),

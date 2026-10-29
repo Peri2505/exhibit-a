@@ -86,10 +86,13 @@ class Sandbox:
                 cmd += ["-v", f"{self.deps_dir.resolve()}:/deps:ro", "-e", "PYTHONPATH=/deps"]
             cmd += [settings.sandbox_image, "python", *args]
             env = None
+            preexec = None
         else:
             cmd = [sys.executable, *args]
             env = _scrubbed_env()
-        rc, out = await _run(cmd, cwd=repo, timeout=settings.test_timeout_s, env=env)
+            preexec = _rlimit_preexec
+        rc, out = await _run(cmd, cwd=repo, timeout=settings.test_timeout_s,
+                             env=env, preexec=preexec)
         if rc == -1:
             return TestRun("timeout", output=out)
         return _parse(rc, out, report)
@@ -102,10 +105,35 @@ def _scrubbed_env() -> dict[str, str]:
     return env
 
 
-async def _run(cmd: list[str], cwd: Path, timeout: int, env: dict | None) -> tuple[int, str]:
+def _rlimit_preexec() -> None:
+    """Cap CPU time, address space, file size and core dumps for a local test run.
+
+    The Docker sandbox is the real isolation boundary; this hardens the local
+    fallback so a runaway or hostile test can't exhaust the host. POSIX only.
+    """
+    try:
+        import resource
+    except ImportError:  # non-POSIX
+        return
+    gb = 1024 * 1024 * 1024
+    for res, soft, hard in (
+        (resource.RLIMIT_CPU, 120, 130),           # seconds of CPU
+        (resource.RLIMIT_AS, 2 * gb, 2 * gb),      # address space
+        (resource.RLIMIT_FSIZE, gb, gb),           # max file size written
+        (resource.RLIMIT_CORE, 0, 0),              # no core dumps
+    ):
+        try:
+            resource.setrlimit(res, (soft, hard))
+        except (ValueError, OSError):
+            pass
+
+
+async def _run(cmd: list[str], cwd: Path, timeout: int, env: dict | None,
+               preexec=None) -> tuple[int, str]:
+    kwargs = {"preexec_fn": preexec} if (preexec and os.name == "posix") else {}
     proc = await asyncio.create_subprocess_exec(
         *cmd, cwd=str(cwd), env=env,
-        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, **kwargs)
     try:
         out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
     except asyncio.TimeoutError:
