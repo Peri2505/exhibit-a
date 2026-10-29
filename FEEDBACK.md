@@ -1,8 +1,20 @@
 # Feedback — building Exhibit A on Nebius Token Factory + NVIDIA Nemotron
 
-> Note to self (Aiperi): update this after your first live run with real credits — add
-> any latency/cost numbers and anything that surprised you. The notes below are from
-> building the integration.
+## Real run on Token Factory (measured)
+Full scan of the bundled demo target (`demo_target`, a single Flask file), with all
+inference running on Nebius Token Factory using NVIDIA Nemotron:
+
+- **Cost: $0.1275** for the entire scan. Nano triage was effectively free; Super handled
+  analysis; Ultra did the proof-test and patch reasoning (most of the spend).
+- **Latency:** ~2 minutes end to end — Ultra calls ran ~4–18s each, Nano/Super were quick.
+- **Result:** 6 issues surfaced — 5 proven with a failing test; **4 auto-fixed and verified**
+  (IDOR, missing admin auth, hardcoded secret, permissive CORS); 1 proven but left for a
+  manual fix (unsalted SHA‑256 password hashing — a vulnerability we had **not** planted,
+  so the models found it on their own); and 1 dropped because no reliable failing proof
+  could be produced (a SQL-injection candidate).
+- The dropped and manual-fix cases are the **"proof before patch" discipline working as
+  intended**: nothing is reported unless a test demonstrates it, and nothing is claimed
+  fixed unless the proof and the existing test suite both pass.
 
 ## What worked well
 - **One endpoint, three models.** Token Factory's OpenAI-compatible `/v1/chat/completions`
