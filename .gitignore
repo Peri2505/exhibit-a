@@ -12,3 +12,5 @@ venv/
 # Local-only B-roll / helper (not part of the project)
 assets/video/
 tools/record_ui.py
+assets/video_build/
+tools/make_video.py
