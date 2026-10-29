@@ -2,12 +2,12 @@
 
 # ⚖️ Exhibit A
 
-### The security agent that **proves every bug before it fixes it.**
+### A security agent that proves every bug before it fixes it.
 
-*No warning ships without an exhibit. If Exhibit A can't prove a bug with a failing test, it doesn't report it.*
+*If it can't prove a bug with a failing test, it doesn't report it.*
 
-Built for the **Nebius × NVIDIA Global AI Hackathon** · Coding & Agentic Engineering track
-Powered by **NVIDIA Nemotron** on **Nebius Token Factory**
+Nebius × NVIDIA Global AI Hackathon · Coding & Agentic Engineering track
+Built with **NVIDIA Nemotron** on **Nebius Token Factory**
 
 ![CI](https://github.com/Peri2505/exhibit-a/actions/workflows/ci.yml/badge.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-f6a821.svg)
@@ -17,65 +17,67 @@ Powered by **NVIDIA Nemotron** on **Nebius Token Factory**
 
 ---
 
-## The problem
+## Why I built this
 
-In 2026, a huge share of new code is written by AI and shipped by people who can't fully review it. The result is a flood of apps with the same classic holes: missing auth checks, broken access control, hardcoded secrets, injectable queries, wide-open CORS.
+A lot of code now gets written by AI and shipped by people who don't have time to read all of it, and it ships with the same handful of security holes every time: missing auth checks, broken access control, hardcoded secrets, injectable queries, open CORS.
 
-The tools meant to catch this make it worse. Traditional scanners emit **hundreds of warnings**, most of them false positives, so developers learn to ignore all of them. A warning you can't trust is noise.
+The tools that are supposed to catch this tend to make it worse. A scanner throws a few hundred warnings, most of them false alarms, and after a while you stop reading any of them. A warning you can't trust is just noise.
 
-## The idea: proof, not warnings
+So I tried the opposite idea: what if the tool had to *prove* a bug was real before it was allowed to tell you about it?
 
-Exhibit A is a coding agent that treats every suspected vulnerability like a case it has to **take to court**. For each one it:
+## How it works
 
-1. **Writes a failing test that proves the bug is real** — e.g. *"an unauthenticated request to `/api/admin/users` returns `200` when it must return `401`."* That test is the evidence. The "Exhibit A."
-2. **Runs that test in an isolated sandbox** and confirms it fails on the current code.
-3. **Writes the smallest patch that fixes it**, then re-runs the proof *and the project's existing test suite* until the proof is green and nothing else broke.
-4. **Produces a diff and a plain-English case file** you can drop into a pull request.
+Exhibit A treats each suspected vulnerability like a case it has to make. For every finding it:
 
-If it can't produce a reliable failing test, the finding is **dropped, not reported**. That single rule — *proof before patch* — is the whole product. The output is zero unproven findings and every fix verified by execution.
+1. **Writes a test that proves the bug is real** — for example, "an unauthenticated request to `/api/admin/users` comes back `200` when it should be `401`." That failing test is the evidence — the "Exhibit A."
+2. **Runs that test in an isolated sandbox** and checks that it really does fail on the current code.
+3. **Writes the smallest patch it can**, then re-runs the proof *and* the project's existing tests until the proof passes and nothing else broke.
+4. **Hands back a diff and a short plain-English case file** you can drop straight into a pull request.
+
+If it can't come up with a test that reliably fails, it drops the finding instead of reporting it. That one rule — prove it before you patch it — is really the whole point. You end up with no unproven findings, and every fix checked by actually running code.
 
 ![Exhibit A case board](assets/ui-overview.png)
 
 ---
 
-## What it does well — and its honest limits
+## What it's good at, and where it isn't
 
-**Strengths**
-- **Execution-grounded, not vibes.** Every reported bug is backed by a test that actually ran and *failed* on the current code; every fix is re-verified against that test **and** the project's existing suite before it's called Fixed.
-- **Cost-aware model routing.** Three Nemotron tiers on Token Factory, each used where it earns its keep — Nano for breadth, Ultra only for the hard reasoning. A full scan of the demo target cost **$0.13** on a real run.
-- **A complete product, not a terminal demo.** The case-file UI shows each finding move Suspected → Proven → Fixed, the red proof test turning green, the generated test, and the diff — with a live model cost/latency panel.
-- **It generalizes.** On a real run it surfaced a vulnerability we hadn't planted (unsalted password hashing) and *dropped* one it couldn't prove — the discipline working, not a scripted path.
+**What works**
+- **It's grounded in execution, not guesses.** Every reported bug has a test that ran and failed on the real code, and every fix is re-checked against that test and the existing suite before it's marked Fixed.
+- **It spends money where it matters.** Three Nemotron tiers on Token Factory — Nano for breadth, Super for analysis, Ultra only for the hard reasoning. A full scan of the demo app came to about **$0.13** on a real run.
+- **It's an actual product, not a script dump.** The case-file UI shows each finding move Suspected → Proven → Fixed, the failing test turning green, the generated test, and the diff, with a live cost/latency panel for the models.
+- **It handles code it's never seen.** On a real run it flagged a bug I hadn't planted (unsalted password hashing) and dropped one it couldn't prove — so the discipline isn't just a scripted happy path.
 
-**Honest limits (and what's next)**
-- **Python targets today**; JS/TS and Go are the obvious next languages.
-- **The Docker sandbox is the real isolation boundary.** The local fallback is network-free, env-scrubbed, and resource-limited (CPU/memory/file-size caps), but it's for development only — production runs use Docker.
-- **Proof-before-patch costs one test run per finding**, so very large repos need batching and result caching. That's a deliberate trade: we spend compute to buy trust.
-
----
-
-## Validated on a real external repo
-
-Beyond the bundled target, Exhibit A was run against **[videvelopers/Vulnerable-Flask-App](https://github.com/videvelopers/Vulnerable-Flask-App)** — an OWASP-referenced, deliberately-vulnerable Flask app it had never seen:
-
-- **Proved and auto-fixed 2 real vulnerabilities** — a **SQL injection** in `/user/<name>` and a **Server-Side Template Injection** in `/hello` — each with a generated test that failed on the current code, then passed after the patch (with the app's behavior otherwise intact).
-- **Dropped the findings it couldn't prove** — two pickle-deserialization leads and a command-injection candidate — instead of reporting them. The "proof before patch" discipline held on code it didn't control.
-- **Cost: $0.13** for the full scan.
-
-That's the whole point: on an unfamiliar real codebase, it reported *only* what it could demonstrate with a failing test, and fixed what it reported.
+**What it doesn't do (yet)**
+- It only reads **Python** right now. JS/TS and Go are the obvious next step.
+- **Docker is the real isolation boundary.** There's a local fallback that's network-free, has a scrubbed environment, and caps CPU/memory/file size, but I'd only trust it for development — a real deployment should use the Docker sandbox.
+- It runs a test per finding, so a huge repo would need batching and caching. That's a deliberate trade — it spends compute to earn trust.
 
 ---
 
-## Model routing — the right Nemotron for each job
+## I ran it on a real repo, not just my demo
 
-Exhibit A sends each step to the cheapest Nemotron model that can do it well, all served on **Nebius Token Factory** through one OpenAI-compatible endpoint. The UI shows the live cost, token count, and latency per tier.
+To check it wasn't just working on my own toy app, I pointed it at **[videvelopers/Vulnerable-Flask-App](https://github.com/videvelopers/Vulnerable-Flask-App)**, an OWASP-referenced vulnerable Flask app it had never seen:
 
-| Tier | Model (Token Factory ID) | Job in the pipeline | Why this tier |
+- It **proved and auto-fixed two real bugs** — a **SQL injection** in `/user/<name>` and a **server-side template injection** in `/hello` — each with a test that failed first and passed after the patch, without breaking the rest of the app.
+- It **dropped the ones it couldn't prove** — two pickle-deserialization leads and a command-injection guess — rather than reporting them.
+- The whole scan cost about **$0.13**.
+
+That's the behavior I was after: on code it didn't write, it only reported what it could actually demonstrate.
+
+---
+
+## Which Nemotron model does what
+
+Each step goes to the cheapest Nemotron model that can handle it, all served through one OpenAI-compatible Token Factory endpoint. The UI shows live cost, tokens, and latency per tier.
+
+| Tier | Model (Token Factory ID) | What it does | Why this one |
 |---|---|---|---|
-| **Nano** | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | Triage every source file by risk | Fast and nearly free; runs over the whole repo |
-| **Super** | `nvidia/nemotron-3-super-120b-a12b` | Turn risky files into concrete, testable findings | Strong analysis at a fraction of Ultra's cost |
-| **Ultra** | `nvidia/Nemotron-3-Ultra-550b-a55b` | Write the proof test, then write the patch | Hard multi-step reasoning where correctness matters most |
+| **Nano** | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` | Triage every file by risk | Fast and nearly free, so it can read the whole repo |
+| **Super** | `nvidia/nemotron-3-super-120b-a12b` | Turn risky files into concrete, testable findings | Good analysis for a fraction of Ultra's price |
+| **Ultra** | `nvidia/Nemotron-3-Ultra-550b-a55b` | Write the proof test, then the patch | The hard reasoning, where getting it right matters most |
 
-> The expensive model is only used for the two hardest steps, so a full scan of a small repo costs a few cents. Confirm the exact IDs your account serves with `python -m exhibit_a models`.
+> Ultra only gets called for the two hardest steps, which is why a small scan runs a few cents. Check the exact IDs your account serves with `python -m exhibit_a models`.
 
 ---
 
@@ -104,10 +106,10 @@ Exhibit A sends each step to the cheapest Nemotron model that can do it well, al
                               proof green + suite green ─▶  VERIFIED  (diff + case file)
 ```
 
-Every event streams to the UI over Server-Sent Events, so you watch the case build in real time.
+Everything streams to the UI over Server-Sent Events, so you watch the case get built in real time.
 
-### Safety by design
-Exhibit A is a **defensive** tool that runs on code you own. It never attacks a live system: tests run against a local copy in a sandbox with **no network access**. Proof payloads are minimal and only exercise the local code path (a classic auth-bypass check, an out-of-scope id, an untrusted `Origin` header). It finds and fixes; it does not weaponize.
+### A note on safety
+Exhibit A is a defensive tool meant to run on code you own. It doesn't attack anything live — tests run against a local copy in a sandbox with no network. The proof payloads are minimal and only touch the local code path (a classic auth-bypass check, an id that isn't yours, an untrusted `Origin` header). It finds and fixes; it doesn't weaponize.
 
 ---
 
@@ -121,16 +123,16 @@ pip install -r requirements.txt
 cp .env.example .env            # add your NEBIUS_API_KEY
 python -m exhibit_a models      # confirm the Nemotron model IDs your account serves
 
-# (recommended) build the sandbox image for isolated test runs
+# recommended: build the sandbox image for isolated test runs
 docker build -t exhibit-a-sandbox:latest -f sandbox.Dockerfile .
 
 # open the case-file UI
 python -m exhibit_a serve       # → http://127.0.0.1:8000
 ```
 
-Then either paste a path / public GitHub URL and click **Open case**, or click **Replay demo** to watch a recorded run against the bundled vulnerable app (no API key needed).
+From there, paste a path or a public GitHub URL and click **Open case**, or hit **Replay demo** to watch a recorded run against the bundled app (no API key needed).
 
-From the command line:
+Or from the command line:
 
 ```bash
 python -m exhibit_a scan --local ./demo_target          # scan the bundled target
@@ -138,21 +140,20 @@ python -m exhibit_a scan --repo https://github.com/you/project
 ```
 
 ### The bundled target
-`demo_target/` is **NoteVault**, a tiny Flask API that is intentionally vulnerable (five planted bugs). It's the safe, self-contained thing to point Exhibit A at first. A recorded run of all five being proven and fixed lives in `runs/demo/` and drives the **Replay demo** button and the video.
+`demo_target/` is **NoteVault**, a tiny Flask API I made intentionally vulnerable (five planted bugs). It's the safe thing to try first. A recorded run of all five getting proven and fixed lives in `runs/demo/`, and that's what the **Replay demo** button plays back.
 
 ---
 
 ## What runs where (Nebius & NVIDIA)
 
-- **NVIDIA Nemotron** (Nano / Super / Ultra) does all the reasoning — triage, analysis, proof-test authoring, and patching.
-- **Nebius Token Factory** serves every model behind one OpenAI-compatible endpoint (`/v1/chat/completions`), which is what makes the three-tier routing a few lines of config instead of three integrations.
-- The sandbox and UI are plain Python; nothing is tied to a specific host, so you can run the agent anywhere and point it at Token Factory.
+- **NVIDIA Nemotron** (Nano / Super / Ultra) does all the reasoning — triage, analysis, writing the proof tests, and writing the patches.
+- **Nebius Token Factory** serves all three models behind one OpenAI-compatible endpoint (`/v1/chat/completions`), which is the reason the three-tier routing is a few lines of config instead of three separate integrations.
+- The sandbox and UI are plain Python and aren't tied to any host, so you can run the agent wherever and point it at Token Factory.
 
-## Feedback for Nebius Token Factory & NVIDIA
-See [`FEEDBACK.md`](FEEDBACK.md) for notes on the developer experience — what worked well and what tripped us up while building on Token Factory and Nemotron.
+See [`FEEDBACK.md`](FEEDBACK.md) for my honest notes on building with Token Factory and Nemotron — what went smoothly and what didn't.
 
-## Built during the submission period
-Exhibit A was built from scratch for this hackathon. Everything in this repository — the agent, the three-tier Nemotron routing, the sandbox, the case-file UI, and the bundled vulnerable target — was written during the submission period.
+## About this project
+I built Exhibit A from scratch for this hackathon — the agent, the three-tier Nemotron routing, the sandbox, the case-file UI, and the bundled vulnerable app are all new, written during the submission period.
 
 ## License
-[MIT](LICENSE) — see the top of the file.
+[MIT](LICENSE)
