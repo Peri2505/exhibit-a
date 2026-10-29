@@ -13,6 +13,8 @@ Built with **NVIDIA Nemotron** on **Nebius Token Factory**
 ![License: MIT](https://img.shields.io/badge/License-MIT-f6a821.svg)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)
 
+🎥 **[Watch the 2-minute demo](https://youtu.be/YF88f0MTJ0Y)**
+
 </div>
 
 ---
