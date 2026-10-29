@@ -53,6 +53,18 @@ If it can't produce a reliable failing test, the finding is **dropped, not repor
 
 ---
 
+## Validated on a real external repo
+
+Beyond the bundled target, Exhibit A was run against **[videvelopers/Vulnerable-Flask-App](https://github.com/videvelopers/Vulnerable-Flask-App)** — an OWASP-referenced, deliberately-vulnerable Flask app it had never seen:
+
+- **Proved and auto-fixed 2 real vulnerabilities** — a **SQL injection** in `/user/<name>` and a **Server-Side Template Injection** in `/hello` — each with a generated test that failed on the current code, then passed after the patch (with the app's behavior otherwise intact).
+- **Dropped the findings it couldn't prove** — two pickle-deserialization leads and a command-injection candidate — instead of reporting them. The "proof before patch" discipline held on code it didn't control.
+- **Cost: $0.13** for the full scan.
+
+That's the whole point: on an unfamiliar real codebase, it reported *only* what it could demonstrate with a failing test, and fixed what it reported.
+
+---
+
 ## Model routing — the right Nemotron for each job
 
 Exhibit A sends each step to the cheapest Nemotron model that can do it well, all served on **Nebius Token Factory** through one OpenAI-compatible endpoint. The UI shows the live cost, token count, and latency per tier.
