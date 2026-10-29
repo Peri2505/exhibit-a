@@ -19,3 +19,6 @@ assets/video_build2/
 tools/make_video2.py
 assets/video_build3/
 tools/make_video3.py
+assets/video_assets_pack/
+assets/exhibit-a-video-assets.zip
+tools/export_assets.py
